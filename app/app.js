@@ -17,19 +17,43 @@ function fmt(iso) {
 }
 
 function rowHtml(i) {
-  const done = acked.has(i.id);
-  return `<li data-testid="incident-row" data-id="${esc(i.id)}" class="row ${esc(i.severity)}">
-        <span class="id">${esc(i.id)}</span>
+  return `<span class="id">${esc(i.id)}</span>
         <span class="sev">${esc(i.severity)}</span>
         <span class="what">${esc(i.service)} · ${esc(i.region)} · ${esc(i.summary)}</span>
         <time datetime="${esc(i.openedAt)}">${esc(fmt(i.openedAt))}</time>
-        ${done ? '<span data-testid="acked" class="acked">✓ acked</span>' : `<button type="button" data-testid="ack"${pending.has(i.id) ? ' disabled' : ''}>Ack</button>`}
-      </li>`;
+        <span class="action"></span>`;
 }
 
+function actionHtml(id) {
+  if (acked.has(id)) return '<span data-testid="acked" class="acked">✓ acked</span>';
+  return `<button type="button" data-testid="ack"${pending.has(id) ? ' disabled' : ''}>Ack</button>`;
+}
+
+const rowEls = new Map();
+
+// Rows are kept and updated in place: only new incidents add a row, so nothing moves under the pointer except by a new row at the top.
 function render() {
   const sorted = [...incidents.values()].sort((a, b) => new Date(b.openedAt) - new Date(a.openedAt));
-  list.innerHTML = sorted.map(rowHtml).join('');
+  let prev = null;
+  for (const i of sorted) {
+    let el = rowEls.get(i.id);
+    if (!el) {
+      el = document.createElement('li');
+      el.setAttribute('data-testid', 'incident-row');
+      el.dataset.id = i.id;
+      el.className = `row ${i.severity}`;
+      el.innerHTML = rowHtml(i);
+      rowEls.set(i.id, el);
+      list.insertBefore(el, prev ? prev.nextSibling : list.firstChild);
+    }
+    const action = el.querySelector('.action');
+    const html = actionHtml(i.id);
+    if (action.dataset.state !== html) {
+      action.innerHTML = html;
+      action.dataset.state = html;
+    }
+    prev = el;
+  }
   empty.hidden = sorted.length > 0;
 }
 
