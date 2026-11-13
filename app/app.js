@@ -33,11 +33,31 @@ function render() {
   empty.hidden = sorted.length > 0;
 }
 
-list.addEventListener('click', async (e) => {
+const confirmBox = document.querySelector('[data-testid="confirm"]');
+const confirmText = confirmBox.querySelector('.confirm-text');
+let confirming = null;
+
+function closeConfirm() {
+  confirming = null;
+  confirmBox.hidden = true;
+}
+
+// The id is captured at click time, so rows moving later cannot change which incident is acked.
+list.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-testid="ack"]');
   if (!btn) return;
   const id = btn.closest('[data-testid="incident-row"]').dataset.id;
-  if (pending.has(id)) return;
+  confirming = id;
+  confirmText.textContent = `Ack incident ${id}?`;
+  confirmBox.hidden = false;
+});
+
+confirmBox.querySelector('[data-testid="confirm-cancel"]').addEventListener('click', closeConfirm);
+
+confirmBox.querySelector('[data-testid="confirm-ack"]').addEventListener('click', async () => {
+  const id = confirming;
+  if (!id || pending.has(id)) return;
+  closeConfirm();
   pending.add(id);
   render();
   try {
